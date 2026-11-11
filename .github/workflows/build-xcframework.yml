@@ -66,29 +66,12 @@ jobs:
         run: |
           PKG_SHA=$(gh api repos/Indroids/ECCPlatformIOS/contents/Package.swift \
             --jq '.sha' 2>/dev/null || echo "")
-          CONTENT=$(python3 - <<EOF
-import base64
-src = """// swift-tools-version: 5.9
-import PackageDescription
 
-let package = Package(
-    name: "ECCPlatformIOS",
-    platforms: [.iOS(.v16)],
-    products: [
-        .library(name: "ECCPlatform", targets: ["ECCPlatform"])
-    ],
-    targets: [
-        .binaryTarget(
-            name: "ECCPlatform",
-            url: "${ZIP_URL}",
-            checksum: "${CHECKSUM}"
-        )
-    ]
-)
-"""
-print(base64.b64encode(src.encode()).decode())
-EOF
-)
+          printf '// swift-tools-version: 5.9\nimport PackageDescription\n\nlet package = Package(\n    name: "ECCPlatformIOS",\n    platforms: [.iOS(.v16)],\n    products: [\n        .library(name: "ECCPlatform", targets: ["ECCPlatform"])\n    ],\n    targets: [\n        .binaryTarget(\n            name: "ECCPlatform",\n            url: "%s",\n            checksum: "%s"\n        )\n    ]\n)\n' \
+            "$ZIP_URL" "$CHECKSUM" > /tmp/Package.swift
+
+          CONTENT=$(base64 < /tmp/Package.swift)
+
           if [ -n "$PKG_SHA" ]; then
             gh api --method PUT repos/Indroids/ECCPlatformIOS/contents/Package.swift \
               -f message="chore: update XCFramework to ${VERSION}" \
